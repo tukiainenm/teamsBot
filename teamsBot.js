@@ -2,13 +2,27 @@ const { TeamsActivityHandler, CardFactory, TurnContext } = require("botbuilder")
 const rawWelcomeCard = require("./adaptiveCards/welcome.json");
 const rawLearnCard = require("./adaptiveCards/learn.json");
 const cardTools = require("@microsoft/adaptivecards-tools");
-
 class TeamsBot extends TeamsActivityHandler {
   constructor() {
     super();
 
-    // record the likeCount
-    this.likeCountObj = { likeCount: 0 };
+    this.officeCountobj = 0;
+    this.homeCountobj = 0;
+    require('dotenv').config();
+    const apiKey = process.env.API_KEY
+
+    // Listen to MembersAdded event, view https://docs.microsoft.com/en-us/microsoftteams/platform/resources/bot-v3/bots-notifications for more events
+    this.onMembersAdded(async (context, next) => {
+      const membersAdded = context.activity.membersAdded;
+      for (let cnt = 0; cnt < membersAdded.length; cnt++) {
+        if (membersAdded[cnt].id) {
+          const response = "Hello, where are you working from today?";
+          await context.sendActivity(response);
+          break;
+        }
+      }
+      await next();
+    });
 
     this.onMessage(async (context, next) => {
       console.log("Running with Message Activity.");
@@ -21,57 +35,46 @@ class TeamsBot extends TeamsActivityHandler {
 
       // Trigger command by IM text
       switch (txt) {
-        case "welcome": {
-          const card = cardTools.AdaptiveCards.declareWithoutData(rawWelcomeCard).render();
-          await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
+        case "office": {
+          this.officeCountobj += 1;
           break;
         }
-        case "learn": {
-          this.likeCountObj.likeCount = 0;
-          const card = cardTools.AdaptiveCards.declare(rawLearnCard).render(this.likeCountObj);
-          await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
+        case "home": {
+          this.homeCountobj += 1;
           break;
         }
-        /**
-         * case "yourCommand": {
-         *   await context.sendActivity(`Add your response here!`);
-         *   break;
-         * }
-         */
+        case "show": {
+          const response = (`At the office: ${this.officeCountobj} person(s), at home: ${this.homeCountobj} person(s)`);
+          await context.sendActivity(response);
+          break;
+        }
+        case "weather": {
+          try {
+            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=Espoo,fi&units=metric&APPID=${apiKey}`
+
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+              const weatherData = await response.json();
+
+              const temperature = weatherData.main.temp
+              const description = weatherData.weather[0].description
+
+              const message = (`Weather in Espoo: ${temperature}°C, ${description}`)
+              await context.sendActivity(message);
+            }
+            else {
+              await context.sendActivity('Error fetching weather data');
+            }
+          }
+          catch (error) {
+            console.error(error);
+          }
+        }
       }
 
       // By calling next() you ensure that the next BotHandler is run.
       await next();
     });
-
-    // Listen to MembersAdded event, view https://docs.microsoft.com/en-us/microsoftteams/platform/resources/bot-v3/bots-notifications for more events
-    this.onMembersAdded(async (context, next) => {
-      const membersAdded = context.activity.membersAdded;
-      for (let cnt = 0; cnt < membersAdded.length; cnt++) {
-        if (membersAdded[cnt].id) {
-          const card = cardTools.AdaptiveCards.declareWithoutData(rawWelcomeCard).render();
-          await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
-          break;
-        }
-      }
-      await next();
-    });
-  }
-
-  // Invoked when an action is taken on an Adaptive Card. The Adaptive Card sends an event to the Bot and this
-  // method handles that event.
-  async onAdaptiveCardInvoke(context, invokeValue) {
-    // The verb "userlike" is sent from the Adaptive Card defined in adaptiveCards/learn.json
-    if (invokeValue.action.verb === "userlike") {
-      this.likeCountObj.likeCount++;
-      const card = cardTools.AdaptiveCards.declare(rawLearnCard).render(this.likeCountObj);
-      await context.updateActivity({
-        type: "message",
-        id: context.activity.replyToId,
-        attachments: [CardFactory.adaptiveCard(card)],
-      });
-      return { statusCode: 200 };
-    }
   }
 }
 
