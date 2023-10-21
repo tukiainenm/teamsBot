@@ -1,0 +1,29 @@
+{
+  "type": "AdaptiveCard",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Choose Your Location",
+      "size": "medium",
+      "weight": "bolder"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Home",
+      "data": {
+        "location": "Home"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Office",
+      "data": {
+        "location": "Office"
+      }
+    }
+  ],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.3"
+}

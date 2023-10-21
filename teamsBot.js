@@ -1,5 +1,5 @@
 const { TeamsActivityHandler, CardFactory, TurnContext } = require("botbuilder");
-const rawWelcomeCard = require("./adaptiveCards/welcome.json");
+const workLocationCard = require("./adaptiveCards/homeOrOffice.json");
 const rawLearnCard = require("./adaptiveCards/learn.json");
 const cardTools = require("@microsoft/adaptivecards-tools");
 class TeamsBot extends TeamsActivityHandler {
@@ -9,15 +9,15 @@ class TeamsBot extends TeamsActivityHandler {
     this.officeCountobj = 0;
     this.homeCountobj = 0;
     require('dotenv').config();
-    const apiKey = process.env.API_KEY
+    const apiKey = process.env.API_KEY;
 
     // Listen to MembersAdded event, view https://docs.microsoft.com/en-us/microsoftteams/platform/resources/bot-v3/bots-notifications for more events
     this.onMembersAdded(async (context, next) => {
       const membersAdded = context.activity.membersAdded;
       for (let cnt = 0; cnt < membersAdded.length; cnt++) {
         if (membersAdded[cnt].id) {
-          const response = "Hello, where are you working from today?";
-          await context.sendActivity(response);
+          const card = cardTools.AdaptiveCards.declare(workLocationCard).render();
+          await context.sendActivity({ attachments: [CardFactory.adaptiveCard(card)] });
           break;
         }
       }
@@ -44,8 +44,11 @@ class TeamsBot extends TeamsActivityHandler {
           break;
         }
         case "show": {
-          const response = (`At the office: ${this.officeCountobj} person(s), at home: ${this.homeCountobj} person(s)`);
-          await context.sendActivity(response);
+          if (this.officeCountobj == 0 && this.homeCountobj == 0) {
+            await context.sendActivity('No answers yet');
+          } else {
+            await context.sendActivity(`At the office: ${this.officeCountobj} person(s), at home: ${this.homeCountobj} person(s).`)
+          }
           break;
         }
         case "weather": {
